@@ -5,6 +5,7 @@ __pycache__/
 venv/
 .env
 debug.log
+*.db
 
 # Node
 node_modules/
@@ -21,3 +22,4 @@ Thumbs.db
 
 # Logs
 logs/execution_history.json
+logs/*.db

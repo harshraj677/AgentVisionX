@@ -9,7 +9,7 @@ import TimelineReplay from './components/TimelineReplay';
 import TokenAnalytics from './components/TokenAnalytics';
 import useWebSocket from './hooks/useWebSocket';
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
 
 export default function App() {
   // ─── State ───
