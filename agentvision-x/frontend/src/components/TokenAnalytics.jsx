@@ -114,11 +114,12 @@ export default function TokenAnalytics({
             {netOutputTokens > 0 && <span className="text-emerald-400 ml-1">↓{netOutputTokens}</span>}
             {thinkingTokens > 0 && <span className="text-purple-400 ml-1">🧠{thinkingTokens}</span>}
           </div>
+          <div className="text-[8px] text-av-muted/60 mt-0.5">from API response</div>
         </div>
-        <div className="glass-card-sm p-2.5 text-center">
+        <div className="glass-card-sm p-2.5 text-center" title="Includes your query + the hidden system instruction sent to the AI. This is the real token count from the API, not a word count.">
           <div className="text-[10px] text-av-muted uppercase">Input</div>
           <div className="text-lg font-mono font-bold text-sky-400">{promptTokens.toLocaleString()}</div>
-          <div className="text-[9px] text-av-muted mt-0.5">prompt tokens</div>
+          <div className="text-[9px] text-av-muted mt-0.5">query + system prompt</div>
         </div>
         <div className="glass-card-sm p-2.5 text-center">
           <div className="text-[10px] text-av-muted uppercase">Output</div>
