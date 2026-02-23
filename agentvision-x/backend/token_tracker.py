@@ -68,7 +68,11 @@ class ExecutionUsage:
         thinking_tok = int(api_result.get("thinking_tokens") or 0)
         cost_val = float(api_result.get("cost") or 0.0)
 
-        # Derive total if API response omitted it
+        # SAFETY: warn if all token fields are zero (API may not have returned usage)
+        if not prompt_tok and not completion_tok and not total_tok:
+            print(f"[token_tracker] ⚠ WARNING: Token usage not returned by API for step '{step_name}'")
+
+        # Derive total: total_tokens = prompt_tokens + completion_tokens
         if not total_tok and (prompt_tok or completion_tok):
             total_tok = prompt_tok + completion_tok
 

@@ -72,7 +72,7 @@ def _detect_provider() -> tuple[str, str, Optional[str], str]:
     if openrouter_key:
         return ("openrouter", openrouter_key,
                 "https://openrouter.ai/api/v1",
-                "google/gemini-2.0-flash-exp:free")
+                "deepseek/deepseek-chat:free")
     if openai_key:
         return ("openai", openai_key, None, "gpt-4o-mini")
 
@@ -145,9 +145,10 @@ MODEL_PRICING = {
     "gemma2-9b-it":            {"input": 0.0, "output": 0.0},
     "DeepSeek-R1-Distill-Llama-70B": {"input": 0.0, "output": 0.0},
     # OpenRouter models (pricing varies — use 0 as safe default; real cost from API)
-    "google/gemini-2.0-flash-exp:free": {"input": 0.0, "output": 0.0},
-    "meta-llama/llama-4-maverick:free": {"input": 0.0, "output": 0.0},
+    "deepseek/deepseek-chat:free": {"input": 0.0, "output": 0.0},
     "deepseek/deepseek-r1:free": {"input": 0.0, "output": 0.0},
+    "openrouter/auto": {"input": 0.0, "output": 0.0},
+    "meta-llama/llama-4-maverick:free": {"input": 0.0, "output": 0.0},
 }
 
 
@@ -193,7 +194,7 @@ async def _try_fallback_provider(
     if sambanova_key:
         providers_to_try.append(("sambanova", sambanova_key, "https://api.sambanova.ai/v1", "DeepSeek-R1-Distill-Llama-70B"))
     if openrouter_key:
-        or_model = os.getenv("OPENROUTER_MODEL", "google/gemini-2.0-flash-exp:free").strip()
+        or_model = os.getenv("OPENROUTER_MODEL", "deepseek/deepseek-chat:free").strip()
         providers_to_try.append(("openrouter", openrouter_key, "https://openrouter.ai/api/v1", or_model))
     if groq_key:
         providers_to_try.append(("groq", groq_key, "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile"))
@@ -294,6 +295,11 @@ async def _sambanova_chat(
     prompt_tokens = usage.prompt_tokens if usage else 0
     completion_tokens = usage.completion_tokens if usage else 0
     total_tokens_api = usage.total_tokens if usage else 0
+
+    # SAFETY: warn if usage data is missing
+    if not usage:
+        print("[openai_client] ⚠ WARNING: Token usage not returned by API")
+
     actual_model = response.model or model
     raw_content = response.choices[0].message.content or ""
 
@@ -341,7 +347,8 @@ async def _openrouter_chat(
     Call OpenRouter's OpenAI-compatible endpoint.
 
     Model is configurable via OPENROUTER_MODEL env var.
-    Defaults to google/gemini-2.0-flash-exp:free if not set.
+    Defaults to deepseek/deepseek-chat:free (must always remain available).
+    Falls back to deepseek/deepseek-chat:free on 404 model errors.
     Token usage is read directly from the API response — no estimation.
     """
     from openai import AsyncOpenAI
@@ -356,7 +363,13 @@ async def _openrouter_chat(
         )
 
     # ── Model is configurable — read from env, never hardcoded ──
-    model = os.getenv("OPENROUTER_MODEL", "google/gemini-2.0-flash-exp:free").strip()
+    # Default: deepseek/deepseek-chat:free  (MANDATORY — must stay available)
+    model = os.getenv("OPENROUTER_MODEL", "deepseek/deepseek-chat:free").strip()
+
+    # ── Model fallback list: DeepSeek is always kept as primary/fallback ──
+    OPENROUTER_FALLBACKS = [model]
+    if "deepseek/deepseek-chat:free" not in OPENROUTER_FALLBACKS:
+        OPENROUTER_FALLBACKS.append("deepseek/deepseek-chat:free")
 
     sys_msg = system_prompt or (
         "You are a highly knowledgeable AI assistant. "
@@ -375,60 +388,86 @@ async def _openrouter_chat(
         base_url="https://openrouter.ai/api/v1",
     )
 
-    start = _time.time()
-    print(f"[openai_client] 🌐 Calling OpenRouter — {model}")
+    # ── Try each model in fallback list; handle 404 model errors ──
+    last_error = None
+    for try_model in OPENROUTER_FALLBACKS:
+        start = _time.time()
+        print(f"[openai_client] 🌐 Calling OpenRouter — {try_model}")
 
-    response = await client.chat.completions.create(
-        model=model,
-        messages=messages,
-        max_tokens=max_tokens,
-        temperature=temperature,
-        stream=False,
+        try:
+            response = await client.chat.completions.create(
+                model=try_model,
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                stream=False,
+            )
+        except Exception as e:
+            error_str = str(e)
+            # ── Handle 404 model not found — try next model in fallback list ──
+            if "404" in error_str or "not_found" in error_str.lower() or "invalid model" in error_str.lower():
+                print(f"[openai_client] ⚠ OpenRouter model '{try_model}' returned 404 — trying next fallback")
+                last_error = f"Model '{try_model}' not found (404)"
+                continue
+            raise  # re-raise non-404 errors
+
+        elapsed = _time.time() - start
+
+        # ── Parse REAL token usage from OpenRouter API response ──
+        # OpenRouter returns standard OpenAI-compatible usage object:
+        #   usage.prompt_tokens     → Input Tokens  (prompt_tokens)
+        #   usage.completion_tokens → Output Tokens  (completion_tokens)
+        #   usage.total_tokens      → Total Tokens   (total_tokens)
+        usage = response.usage
+
+        if usage:
+            prompt_tokens = getattr(usage, 'prompt_tokens', 0) or 0
+            completion_tokens = getattr(usage, 'completion_tokens', 0) or 0
+            total_tokens_api = getattr(usage, 'total_tokens', 0) or 0
+        else:
+            # ── SAFETY: Token usage not returned by API — log warning, show 0 ──
+            print("[openai_client] ⚠ WARNING: Token usage not returned by API")
+            prompt_tokens = 0
+            completion_tokens = 0
+            total_tokens_api = 0
+
+        # Derive total: total_tokens = prompt_tokens + completion_tokens
+        total_tokens = total_tokens_api or (prompt_tokens + completion_tokens)
+
+        actual_model = response.model or try_model
+        raw_content = response.choices[0].message.content or ""
+
+        # Strip <think>...</think> reasoning tags if present (some models emit these)
+        import re as _re
+        content = _re.sub(r"<think>.*?</think>\s*", "", raw_content, flags=_re.DOTALL).strip()
+
+        # Check for reasoning/thinking tokens breakdown
+        thinking_tokens = 0
+        if usage and hasattr(usage, 'completion_tokens_details') and usage.completion_tokens_details:
+            thinking_tokens = getattr(usage.completion_tokens_details, 'reasoning_tokens', 0) or 0
+
+        cost = calculate_cost(actual_model, prompt_tokens, completion_tokens)
+
+        print(f"[openai_client] ✅ OpenRouter {actual_model} — "
+              f"prompt: {prompt_tokens}, completion: {completion_tokens}, "
+              f"thinking: {thinking_tokens}, total: {total_tokens} in {elapsed:.2f}s")
+
+        return {
+            "content": content,
+            "model": actual_model,
+            "provider": "openrouter",
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": total_tokens,
+            "thinking_tokens": thinking_tokens,
+            "cost": cost,
+        }
+
+    # All fallback models failed
+    raise Exception(
+        f"All OpenRouter models failed. Last error: {last_error}. "
+        f"Check OPENROUTER_MODEL in backend/.env or try deepseek/deepseek-chat:free"
     )
-
-    elapsed = _time.time() - start
-
-    # ── Parse REAL token usage from OpenRouter API response ──
-    # OpenRouter returns standard OpenAI-compatible usage object:
-    #   usage.prompt_tokens     → Input Tokens
-    #   usage.completion_tokens → Output Tokens
-    #   usage.total_tokens      → Total Tokens
-    usage = response.usage
-    prompt_tokens = getattr(usage, 'prompt_tokens', 0) or 0 if usage else 0
-    completion_tokens = getattr(usage, 'completion_tokens', 0) or 0 if usage else 0
-    total_tokens_api = getattr(usage, 'total_tokens', 0) or 0 if usage else 0
-
-    # Derive total if API returned 0 but individual counts exist
-    total_tokens = total_tokens_api or (prompt_tokens + completion_tokens)
-
-    actual_model = response.model or model
-    raw_content = response.choices[0].message.content or ""
-
-    # Strip <think>...</think> reasoning tags if present (some models emit these)
-    import re as _re
-    content = _re.sub(r"<think>.*?</think>\s*", "", raw_content, flags=_re.DOTALL).strip()
-
-    # Check for reasoning/thinking tokens breakdown
-    thinking_tokens = 0
-    if hasattr(usage, 'completion_tokens_details') and usage.completion_tokens_details:
-        thinking_tokens = getattr(usage.completion_tokens_details, 'reasoning_tokens', 0) or 0
-
-    cost = calculate_cost(actual_model, prompt_tokens, completion_tokens)
-
-    print(f"[openai_client] ✅ OpenRouter {actual_model} — "
-          f"prompt: {prompt_tokens}, completion: {completion_tokens}, "
-          f"thinking: {thinking_tokens}, total: {total_tokens} in {elapsed:.2f}s")
-
-    return {
-        "content": content,
-        "model": actual_model,
-        "provider": "openrouter",
-        "prompt_tokens": prompt_tokens,
-        "completion_tokens": completion_tokens,
-        "total_tokens": total_tokens,
-        "thinking_tokens": thinking_tokens,
-        "cost": cost,
-    }
 
 
 # ═══════════════════════════════════════════════════
@@ -607,6 +646,10 @@ async def chat_completion(
                             completion_tokens = usage_meta.get("candidatesTokenCount", 0)
                             total_from_api = usage_meta.get("totalTokenCount", 0)
 
+                            # SAFETY: warn if usage data is missing
+                            if not usage_meta:
+                                print("[openai_client] ⚠ WARNING: Token usage not returned by API")
+
                             # Fallback: if API omitted any field, derive from others
                             if not total_from_api and (prompt_tokens or completion_tokens):
                                 total_from_api = prompt_tokens + completion_tokens
@@ -703,10 +746,17 @@ async def chat_completion(
 
     # ── Parse token usage safely (handles missing data gracefully) ──
     usage = response.usage
-    prompt_tokens = getattr(usage, 'prompt_tokens', 0) or 0 if usage else 0
-    completion_tokens = getattr(usage, 'completion_tokens', 0) or 0 if usage else 0
-    total_tokens_api = getattr(usage, 'total_tokens', 0) or 0 if usage else 0
-    # Derive total if API omitted it
+    if usage:
+        prompt_tokens = getattr(usage, 'prompt_tokens', 0) or 0
+        completion_tokens = getattr(usage, 'completion_tokens', 0) or 0
+        total_tokens_api = getattr(usage, 'total_tokens', 0) or 0
+    else:
+        # SAFETY: Token usage not returned by API — log warning, show 0
+        print("[openai_client] ⚠ WARNING: Token usage not returned by API")
+        prompt_tokens = 0
+        completion_tokens = 0
+        total_tokens_api = 0
+    # Derive total: total_tokens = prompt_tokens + completion_tokens
     total_tokens = total_tokens_api or (prompt_tokens + completion_tokens)
     actual_model = response.model or use_model
     cost = calculate_cost(actual_model, prompt_tokens, completion_tokens)
