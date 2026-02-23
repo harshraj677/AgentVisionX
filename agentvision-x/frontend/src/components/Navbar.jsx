@@ -164,7 +164,7 @@ export default function Navbar({
             {apiProvider ? `${apiProvider}/` : ''}{apiModel}
           </span>
         )}
-        <div className="text-center" title={`Input: ${promptTokens} | Output: ${completionTokens}${thinkingTokens > 0 ? ` | Thinking: ${thinkingTokens}` : ''}`}>
+        <div className="text-center" title={`Input: ${promptTokens} | Output: ${completionTokens - (thinkingTokens || 0)}${thinkingTokens > 0 ? ` | Thinking: ${thinkingTokens}` : ''} | Total: ${totalTokens}`}>
           <div className="text-[9px] text-av-muted uppercase">Tokens</div>
           <div className="text-[11px] font-mono text-av-text">{totalTokens.toLocaleString()}</div>
         </div>

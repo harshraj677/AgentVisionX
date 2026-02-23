@@ -47,16 +47,19 @@ export default function TokenAnalytics({
   const chartData = timeChartData.length > 0 ? timeChartData : fallbackChartData;
 
   // ── Token pie data ──
-  const thinkingTokens = thinkingTokensProp || 0;
+  // IMPORTANT: thinking_tokens is a SUBSET of completion_tokens (not additive).
+  // Net output = completion_tokens - thinking_tokens
+  const thinkingTokens = Math.min(thinkingTokensProp || 0, completionTokens);
+  const netOutputTokens = completionTokens - thinkingTokens;
   const tokenPieData = [
     { name: 'Prompt (Input)', value: promptTokens, fill: '#38BDF8' },
-    { name: 'Completion (Output)', value: completionTokens, fill: '#22C55E' },
+    { name: 'Output (Net)', value: netOutputTokens, fill: '#22C55E' },
   ];
   if (thinkingTokens > 0) {
-    tokenPieData.push({ name: 'Thinking/Cache', value: thinkingTokens, fill: '#A78BFA' });
+    tokenPieData.push({ name: 'Thinking/Reasoning', value: thinkingTokens, fill: '#A78BFA' });
   }
-  // Total for pie percentage
-  const pieTotal = totalTokens || (promptTokens + completionTokens + thinkingTokens) || 1;
+  // Total for pie percentage — prompt + netOutput + thinking = prompt + completion = totalTokens
+  const pieTotal = totalTokens || (promptTokens + completionTokens) || 1;
 
   const stepColors = [
     '#6366F1', '#8B5CF6', '#EC4899', '#F59E0B', '#22C55E',
@@ -108,7 +111,7 @@ export default function TokenAnalytics({
           <div className="text-lg font-mono font-bold text-av-primary">{totalTokens.toLocaleString()}</div>
           <div className="text-[9px] text-av-muted mt-0.5 font-mono">
             {promptTokens > 0 && <span className="text-sky-400">↑{promptTokens}</span>}
-            {completionTokens > 0 && <span className="text-emerald-400 ml-1">↓{completionTokens}</span>}
+            {netOutputTokens > 0 && <span className="text-emerald-400 ml-1">↓{netOutputTokens}</span>}
             {thinkingTokens > 0 && <span className="text-purple-400 ml-1">🧠{thinkingTokens}</span>}
           </div>
         </div>
@@ -119,8 +122,15 @@ export default function TokenAnalytics({
         </div>
         <div className="glass-card-sm p-2.5 text-center">
           <div className="text-[10px] text-av-muted uppercase">Output</div>
-          <div className="text-lg font-mono font-bold text-emerald-400">{completionTokens.toLocaleString()}</div>
-          <div className="text-[9px] text-av-muted mt-0.5">response tokens</div>
+          <div className="text-lg font-mono font-bold text-emerald-400">{netOutputTokens.toLocaleString()}</div>
+          <div className="text-[9px] text-av-muted mt-0.5">
+            {thinkingTokens > 0 ? 'net response' : 'response tokens'}
+          </div>
+          {thinkingTokens > 0 && (
+            <div className="text-[9px] text-purple-400 mt-0.5 font-mono">
+              +🧠{thinkingTokens.toLocaleString()}
+            </div>
+          )}
         </div>
         <div className="glass-card-sm p-2.5 text-center">
           <div className="text-[10px] text-av-muted uppercase">Total Time</div>

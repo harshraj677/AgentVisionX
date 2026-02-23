@@ -58,6 +58,7 @@ def _get_all_gemini_keys() -> list[str]:
 
 def _detect_provider() -> tuple[str, str, Optional[str], str]:
     """Detect available provider. Returns (provider, api_key, base_url, default_model)."""
+    _reload_env()  # hot-reload .env to pick up any new keys
     gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
     groq_key = os.getenv("GROQ_API_KEY", "").strip()
     openrouter_key = os.getenv("OPENROUTER_API_KEY", "").strip()
@@ -641,9 +642,10 @@ async def chat_completion(
                             # ── Parse REAL token counts from Gemini usageMetadata ──
                             # Keys: promptTokenCount, candidatesTokenCount, totalTokenCount
                             usage_meta = data.get("usageMetadata", {})
-                            prompt_tokens = usage_meta.get("promptTokenCount", 0)
-                            completion_tokens = usage_meta.get("candidatesTokenCount", 0)
-                            total_from_api = usage_meta.get("totalTokenCount", 0)
+                            print(f"[openai_client] 🔍 RAW usageMetadata: {usage_meta}")
+                            prompt_tokens = int(usage_meta.get("promptTokenCount", 0) or 0)
+                            completion_tokens = int(usage_meta.get("candidatesTokenCount", 0) or 0)
+                            total_from_api = int(usage_meta.get("totalTokenCount", 0) or 0)
 
                             # SAFETY: warn if usage data is missing
                             if not usage_meta:

@@ -509,6 +509,11 @@ class ExecutionEngine:
         elapsed = round(time.time() - self._wall_clock_start, 2)
         usage_data = self.usage.to_dict()
         usage_data["wall_clock_time"] = elapsed
+        print(f"[engine] 📊 Broadcasting usage_update: "
+              f"total={usage_data['total_tokens']}, "
+              f"prompt={usage_data['total_prompt_tokens']}, "
+              f"completion={usage_data['total_completion_tokens']}, "
+              f"steps={len(usage_data['steps'])}")
         await manager.broadcast({
             "type": "usage_update",
             "data": usage_data
