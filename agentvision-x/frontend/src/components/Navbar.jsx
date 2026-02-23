@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 const MODEL_OPTIONS = [
   { value: 'puter',        label: '✨ Puter.js (Free)',          sub: 'GPT-4o Mini • No key needed' },
   { value: 'sambanova',    label: '🧠 DeepSeek R1 70B',        sub: 'SambaNova • Free & fast' },
-  { value: 'openrouter',   label: '🌐 OpenRouter',              sub: 'DeepSeek Chat • Configurable' },
+  { value: 'openrouter',   label: '🌐 OpenRouter',              sub: 'Auto-route • Configurable' },
   { value: 'gemini-flash', label: '🔵 Gemini Flash',            sub: 'Requires GEMINI_API_KEY' },
   { value: 'groq',         label: '⚡ Groq — LLaMA 3.3',        sub: 'Requires GROQ_API_KEY' },
 ];

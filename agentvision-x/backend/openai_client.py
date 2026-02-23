@@ -72,7 +72,7 @@ def _detect_provider() -> tuple[str, str, Optional[str], str]:
     if openrouter_key:
         return ("openrouter", openrouter_key,
                 "https://openrouter.ai/api/v1",
-                "deepseek/deepseek-chat:free")
+                "openrouter/auto")
     if openai_key:
         return ("openai", openai_key, None, "gpt-4o-mini")
 
@@ -194,7 +194,7 @@ async def _try_fallback_provider(
     if sambanova_key:
         providers_to_try.append(("sambanova", sambanova_key, "https://api.sambanova.ai/v1", "DeepSeek-R1-Distill-Llama-70B"))
     if openrouter_key:
-        or_model = os.getenv("OPENROUTER_MODEL", "deepseek/deepseek-chat:free").strip()
+        or_model = os.getenv("OPENROUTER_MODEL", "openrouter/auto").strip()
         providers_to_try.append(("openrouter", openrouter_key, "https://openrouter.ai/api/v1", or_model))
     if groq_key:
         providers_to_try.append(("groq", groq_key, "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile"))
@@ -347,8 +347,8 @@ async def _openrouter_chat(
     Call OpenRouter's OpenAI-compatible endpoint.
 
     Model is configurable via OPENROUTER_MODEL env var.
-    Defaults to deepseek/deepseek-chat:free (must always remain available).
-    Falls back to deepseek/deepseek-chat:free on 404 model errors.
+    Defaults to openrouter/auto (safe, always-available model).
+    Falls back to openrouter/auto on 404 model errors.
     Token usage is read directly from the API response — no estimation.
     """
     from openai import AsyncOpenAI
@@ -362,14 +362,15 @@ async def _openrouter_chat(
             "Get a free key at https://openrouter.ai/keys"
         )
 
-    # ── Model is configurable — read from env, never hardcoded ──
-    # Default: deepseek/deepseek-chat:free  (MANDATORY — must stay available)
-    model = os.getenv("OPENROUTER_MODEL", "deepseek/deepseek-chat:free").strip()
+    # ── Model is loaded from env — never hardcoded ──
+    # Default: openrouter/auto (always available, auto-routes to best model)
+    # DeepSeek models can be set via OPENROUTER_MODEL env var when available
+    model = os.getenv("OPENROUTER_MODEL", "openrouter/auto").strip()
 
-    # ── Model fallback list: DeepSeek is always kept as primary/fallback ──
+    # ── Model fallback list: openrouter/auto is the guaranteed safe fallback ──
     OPENROUTER_FALLBACKS = [model]
-    if "deepseek/deepseek-chat:free" not in OPENROUTER_FALLBACKS:
-        OPENROUTER_FALLBACKS.append("deepseek/deepseek-chat:free")
+    if "openrouter/auto" not in OPENROUTER_FALLBACKS:
+        OPENROUTER_FALLBACKS.append("openrouter/auto")
 
     sys_msg = system_prompt or (
         "You are a highly knowledgeable AI assistant. "
@@ -406,7 +407,7 @@ async def _openrouter_chat(
             error_str = str(e)
             # ── Handle 404 model not found — try next model in fallback list ──
             if "404" in error_str or "not_found" in error_str.lower() or "invalid model" in error_str.lower():
-                print(f"[openai_client] ⚠ OpenRouter model '{try_model}' returned 404 — trying next fallback")
+                print(f"[openai_client] ⚠ Model not found, switching to fallback model. ('{try_model}' → 404)")
                 last_error = f"Model '{try_model}' not found (404)"
                 continue
             raise  # re-raise non-404 errors
@@ -466,7 +467,7 @@ async def _openrouter_chat(
     # All fallback models failed
     raise Exception(
         f"All OpenRouter models failed. Last error: {last_error}. "
-        f"Check OPENROUTER_MODEL in backend/.env or try deepseek/deepseek-chat:free"
+        f"Check OPENROUTER_MODEL in backend/.env or use openrouter/auto"
     )
 
 
