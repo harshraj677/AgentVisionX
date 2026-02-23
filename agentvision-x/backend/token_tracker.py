@@ -76,6 +76,12 @@ class ExecutionUsage:
         if not total_tok and (prompt_tok or completion_tok):
             total_tok = prompt_tok + completion_tok
 
+        # VALIDATION: warn if total_tokens doesn't match prompt + completion
+        expected_total = prompt_tok + completion_tok
+        if total_tok and expected_total and total_tok != expected_total:
+            print(f"[token_tracker] ⚠ total_tokens mismatch for '{step_name}': "
+                  f"API says {total_tok}, prompt+completion = {expected_total}. Using API value.")
+
         self.steps.append(StepUsage(
             step_id=step_id,
             step_name=step_name,

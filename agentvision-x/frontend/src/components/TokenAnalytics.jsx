@@ -133,7 +133,7 @@ export default function TokenAnalytics({
             {costDisplay}
           </div>
           <div className="text-[9px] text-av-muted mt-0.5">
-            {isFree ? 'free tier' : 'estimated'}
+            {isFree ? 'free tier' : 'from API'}
           </div>
         </div>
       </div>

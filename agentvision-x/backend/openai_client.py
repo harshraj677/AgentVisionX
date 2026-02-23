@@ -157,9 +157,7 @@ def calculate_cost(model: str, prompt_tokens: int, completion_tokens: int) -> fl
     return (prompt_tokens * pricing["input"]) + (completion_tokens * pricing["output"])
 
 
-def _count_tokens(text: str) -> int:
-    """Rough but real token count (words × 1.3, matches GPT tokenizer average)."""
-    return max(1, int(len(text.split()) * 1.3))
+# NOTE: _count_tokens() was removed — all token counts come from API responses only.
 
 
 async def _try_fallback_provider(

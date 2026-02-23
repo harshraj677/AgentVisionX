@@ -356,7 +356,7 @@ class ExecutionEngine:
                     await manager.send_log("ERROR", f"❌ API Error: {error_msg}", step.name)
                     await self._fail(step, f"API Error: {error_msg}")
                     self.current_plan.status = "error"
-                    await self._send_error_completion(error_msg, step_start)
+                    await self._send_error_completion(error_msg)
                     return self.current_plan
 
             else:
@@ -514,14 +514,14 @@ class ExecutionEngine:
             "data": usage_data
         })
 
-    async def _send_error_completion(self, error_msg: str, start_time: float):
+    async def _send_error_completion(self, error_msg: str):
         """Send error completion so UI stops gracefully."""
         await manager.send_complete({
             "total_tokens": self.usage.total_tokens,
             "total_prompt_tokens": self.usage.total_prompt_tokens,
             "total_completion_tokens": self.usage.total_completion_tokens,
             "total_cost": round(self.usage.total_cost, 8),
-            "total_time": round(time.time() - start_time, 2),
+            "total_time": round(time.time() - self._wall_clock_start, 2),
             "status": "error",
             "error": error_msg,
             "final_response": "",
