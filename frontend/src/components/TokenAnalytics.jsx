@@ -55,8 +55,7 @@ export default function TokenAnalytics({
   ];
 
   // ── Cost display ──
-  const isFree = totalCost === 0;
-  const costDisplay = isFree ? 'FREE' : `$${totalCost.toFixed(6)}`;
+  const costDisplay = totalCost > 0 ? `$${totalCost.toFixed(6)}` : '$0.000000';
   const avgTimePerStep = chartData.length > 0
     ? (chartData.reduce((a, d) => a + d.time, 0) / chartData.length).toFixed(2)
     : '0';
@@ -117,11 +116,11 @@ export default function TokenAnalytics({
         </div>
         <div className="glass-card-sm p-2.5 text-center">
           <div className="text-[10px] text-av-muted uppercase">API Cost</div>
-          <div className={`text-lg font-mono font-bold ${isFree ? 'text-emerald-400' : 'text-av-success'}`}>
+          <div className="text-lg font-mono font-bold text-av-success">
             {costDisplay}
           </div>
           <div className="text-[9px] text-av-muted mt-0.5">
-            {isFree ? 'free tier' : 'estimated'}
+            {totalCost > 0 ? 'equivalent rate' : 'no usage yet'}
           </div>
         </div>
       </div>
@@ -252,6 +251,7 @@ export default function TokenAnalytics({
                   <th className="text-right py-1 px-1.5 font-medium">Tokens</th>
                   <th className="text-right py-1 px-1.5 font-medium">Prompt</th>
                   <th className="text-right py-1 px-1.5 font-medium">Completion</th>
+                  <th className="text-right py-1 px-1.5 font-medium">Cost</th>
                   <th className="text-right py-1 px-1.5 font-medium">Model</th>
                 </tr>
               </thead>
@@ -279,6 +279,9 @@ export default function TokenAnalytics({
                     <td className="text-right py-1 px-1.5 font-mono text-emerald-400">
                       {s.completion_tokens > 0 ? s.completion_tokens.toLocaleString() : '—'}
                     </td>
+                    <td className="text-right py-1 px-1.5 font-mono text-av-success">
+                      {s.cost > 0 ? `$${s.cost.toFixed(6)}` : '—'}
+                    </td>
                     <td className="text-right py-1 px-1.5 font-mono text-av-muted">
                       {s.model === 'local' ? '🧠 local' : s.model || '—'}
                     </td>
@@ -298,6 +301,9 @@ export default function TokenAnalytics({
                   </td>
                   <td className="text-right py-1 px-1.5 font-mono text-emerald-400">
                     {completionTokens.toLocaleString()}
+                  </td>
+                  <td className="text-right py-1 px-1.5 font-mono text-av-success font-semibold">
+                    {totalCost > 0 ? `$${totalCost.toFixed(6)}` : '—'}
                   </td>
                   <td className="text-right py-1 px-1.5 font-mono text-av-muted">
                     {tokensPerSec > 0 ? `${tokensPerSec} tok/s` : '—'}

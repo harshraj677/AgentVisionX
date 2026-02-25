@@ -95,20 +95,27 @@ def get_default_model() -> str:
 
 
 # ── Model pricing (per token) ──
+# Market-rate / equivalent pricing so users always see meaningful cost.
+# Even free-tier APIs have a real compute cost — these reflect published rates.
 MODEL_PRICING = {
-    "gemini-2.5-flash":        {"input": 0.0, "output": 0.0},
-    "gemini-2.0-flash":        {"input": 0.0, "output": 0.0},
-    "gemini-2.0-flash-001":    {"input": 0.0, "output": 0.0},
-    "gemini-1.5-flash":        {"input": 0.0, "output": 0.0},
+    # Google Gemini — pay-as-you-go published rates (per token)
+    "gemini-2.5-flash":        {"input": 0.15 / 1_000_000, "output": 0.60 / 1_000_000},
+    "gemini-2.0-flash":        {"input": 0.10 / 1_000_000, "output": 0.40 / 1_000_000},
+    "gemini-2.0-flash-001":    {"input": 0.10 / 1_000_000, "output": 0.40 / 1_000_000},
+    "gemini-2.0-flash-lite":   {"input": 0.075 / 1_000_000, "output": 0.30 / 1_000_000},
+    "gemini-2.5-flash-lite":   {"input": 0.075 / 1_000_000, "output": 0.30 / 1_000_000},
+    "gemini-1.5-flash":        {"input": 0.075 / 1_000_000, "output": 0.30 / 1_000_000},
     "gemini-1.5-pro":          {"input": 1.25 / 1_000_000, "output": 5.00 / 1_000_000},
+    # OpenAI
     "gpt-4o":        {"input": 2.50 / 1_000_000, "output": 10.00 / 1_000_000},
     "gpt-4o-mini":   {"input": 0.15 / 1_000_000, "output": 0.60  / 1_000_000},
     "gpt-3.5-turbo": {"input": 0.50 / 1_000_000, "output": 1.50  / 1_000_000},
-    "llama-3.3-70b-versatile": {"input": 0.0, "output": 0.0},
-    "llama-3.1-8b-instant":    {"input": 0.0, "output": 0.0},
-    "mixtral-8x7b-32768":      {"input": 0.0, "output": 0.0},
-    "gemma2-9b-it":            {"input": 0.0, "output": 0.0},
-    "agentvision-v1":          {"input": 0.0, "output": 0.0},
+    # Groq — free tier, but equivalent market rate shown
+    "llama-3.3-70b-versatile": {"input": 0.59 / 1_000_000, "output": 0.79 / 1_000_000},
+    "llama-3.1-8b-instant":    {"input": 0.05 / 1_000_000, "output": 0.08 / 1_000_000},
+    "mixtral-8x7b-32768":      {"input": 0.24 / 1_000_000, "output": 0.24 / 1_000_000},
+    "gemma2-9b-it":            {"input": 0.20 / 1_000_000, "output": 0.20 / 1_000_000},
+    "agentvision-v1":          {"input": 0.15 / 1_000_000, "output": 0.60 / 1_000_000},
 }
 
 
