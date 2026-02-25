@@ -160,8 +160,13 @@ MODEL_PRICING = {
 }
 
 
+# Default pricing for unknown models — use gpt-4o-mini equivalent rate
+# so cost is NEVER $0 when tokens are present.
+_DEFAULT_PRICING = {"input": 0.15 / 1_000_000, "output": 0.60 / 1_000_000}
+
+
 def calculate_cost(model: str, prompt_tokens: int, completion_tokens: int) -> float:
-    pricing = MODEL_PRICING.get(model, {"input": 0.0, "output": 0.0})
+    pricing = MODEL_PRICING.get(model, _DEFAULT_PRICING)
     return (prompt_tokens * pricing["input"]) + (completion_tokens * pricing["output"])
 
 

@@ -141,6 +141,15 @@ export default function App() {
               setResponse(text);
               setApiModel('gpt-4o-mini');
               setApiProvider('Puter.js ✨');
+              // Estimate tokens & cost for Puter.js (browser-side AI)
+              const estimatedPromptTokens = Math.ceil(puterQuery.length / 4);
+              const estimatedCompletionTokens = Math.ceil(text.length / 4);
+              const estimatedTotal = estimatedPromptTokens + estimatedCompletionTokens;
+              const estimatedCost = (estimatedPromptTokens * 0.15 / 1_000_000) + (estimatedCompletionTokens * 0.60 / 1_000_000);
+              setPromptTokens(estimatedPromptTokens);
+              setCompletionTokens(estimatedCompletionTokens);
+              setTotalTokens(estimatedTotal);
+              setTotalCost(estimatedCost);
             } catch (err) {
               setApiError('Puter.js Error: ' + err.message);
             } finally {
